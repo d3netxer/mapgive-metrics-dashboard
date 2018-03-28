@@ -198,8 +198,6 @@ d3.csv("vc.csv", function (csv) {
 
 });
 
-});
-
 </script>
 </body>
 </html>
