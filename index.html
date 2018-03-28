@@ -1,0 +1,419 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<!-- The link tag forces the browser to download a new version of the favicon -->
+<link rel="icon" href="favicon.ico" />
+
+<style type="text/css">
+
+/*css entry must be here to work, not in main.css
+maybe because chart text is created after main.css loads?
+*/
+#chart-age-count .x.axis text {
+    text-anchor: end !important;
+    transform: rotate(-45deg);
+}
+
+</style>
+
+<head>
+    <meta http-equiv="Content-Type" content="text/html; charset=UTF-8">
+    <title>HOS Dashboard - Data Visualization</title>
+    <meta charset="UTF-8">
+
+    <link rel="stylesheet" type="text/css" href="css/dc.css">
+    <link rel="stylesheet" type="text/css" href="css/leaflet.css">
+    <link rel="stylesheet" type="text/css" href="css/bootstrap.css">
+
+    <link rel="stylesheet" href="js/leaflet-markercluster/MarkerCluster.css" />
+    <link rel="stylesheet" href="js/leaflet-markercluster/MarkerCluster.Default.css"/>
+
+    <link rel="stylesheet" type="text/css" href="css/main.css">
+
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/d3/3.5.17/d3.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/crossfilter2/1.4.0-alpha.6/crossfilter.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/dc/2.1.1/dc.js"></script>
+
+    <script type="text/javascript" src="js/geolib.js"></script>
+    <script type="text/javascript" src="js/leaflet.js"></script>
+    <script type="text/javascript" src="js/KML.js"></script>
+    <script type="text/javascript" src="js/underscore-min.js"></script>
+
+    <script src="js/leaflet-markercluster/leaflet.markercluster.js"></script>
+    <script src="js/Leaflet.heat-gh-pages/dist/leaflet-heat.js"></script>
+</head>
+
+<body>
+<div class="container-fluid">
+  <div class="row">
+    <div class="col-xs-12 dc-data-count dc-chart" id="data-count">
+      <h2>MapGive Metrics Dashboard
+        <small>
+          <span class="filter-count"></span> selected out of <span class="total-count"></span> records |
+           <a id="all" href="#">Reset All</a>
+          </span>
+        </small>
+      </h2>
+    </div>
+  </div>
+
+
+  <div class="row" id="control-row">
+
+<!--
+      <div class="col-xs-4">
+        <div class="col-xs-12 col-md-12">
+          <h4>Age Groups</h4>
+          <div class="dc-chart" id="chart-age-count"></div>
+        </div>
+        <div class="col-xs-12 col-md-12">
+          <h4>Registrations Per Month</h4>
+          <div class="dc-chart" id="chart-register-count"></div>
+        </div>
+      </div>
+-->
+
+      <div class="col-xs-8 col-md-8">
+        <h4>Map</h4>
+        <div id="map"></div>
+        To protect confidentiality, we randomly moved the actual user locations within a fixed radial buffer of 300 meters.
+      </div>
+  </div>
+
+
+
+</div>
+
+<script type="text/javascript">
+
+/* instantiate and configure map */
+var map = L.map('map', {}).setView([38.8997, -77.0365], 11);
+
+var locationMarkers = new L.markerClusterGroup();
+
+marker_list = [];
+
+var customControl;
+
+L.tileLayer('http://{s}.tile.osm.org/{z}/{x}/{y}.png', {
+    attribution: '&copy; <a href="http://osm.org/copyright">OpenStreetMap</a> contributors'
+}).addTo(map);
+
+var kmlLayer = new L.KML("Ward_from_2012.kml");
+
+map.addLayer(kmlLayer);
+
+/* Parse JSON file, create charts, draw markers on map */
+//var bday_count = 0;
+
+function randomDate(start, end) {
+    return new Date(start.getTime() + Math.random() * (end.getTime() - start.getTime()));
+}
+
+
+
+
+
+
+d3.json('hos_pretty4.json', function (error, data) {
+
+  var hosData = data.users;
+
+  //console.log('hosData: ');
+  //console.log(hosData);
+
+  var fullDateFormat = d3.time.format('%a, %d %b %Y %X %Z');
+  var yearFormat = d3.time.format('%Y');
+  var monthFormat = d3.time.format('%b');
+  var dayOfWeekFormat = d3.time.format('%a');
+
+  var transportation = 0;
+  var shelter = 0;
+  var peer_support = 0;
+
+  var hosFullDateFormat = d3.time.format('%A, %B %d, %Y - %H:%M');
+
+  //"register_date": "Saturday, January 28, 2017 - 12:09"
+
+  // normalize/parse data so dc can correctly sort & bin them
+  // I like to think of each "d" as a row in a spreadsheet
+    _.each(hosData, function(eachUser) {
+      /*console.log('each eachUser');
+      console.log(eachUser);*/
+      _.each(eachUser, function(d) {
+          /*console.log('each d');
+          console.log(d);
+
+          console.log('d.Gender');
+          console.log(d["Gender"]);
+          console.log(d.gender);
+
+          console.log('Smsnotifications value:');
+          console.log(d.smsnotifications);
+
+          console.log('d.Birthday');
+          console.log(d["Birthday"]);*/
+
+
+          if(d.user_age_group.length == 0){
+            d.user_age_group="N/A"
+          }
+
+          if(d.where_do_you_sleep_most_often.length == 0){
+            d.where_do_you_sleep_most_often="N/A"
+          }
+
+          if(d.gender.length == 0){
+            d.gender="N/A"
+          }
+
+          d.services = d.services.split(";");
+
+          if (d.demographics.length > 0) {
+            d.demographics = d.demographics.split(";");
+          } else {
+            d.demographics = [];
+          }
+
+          d.register_date = hosFullDateFormat.parse(d.register_date);
+
+          /*console.log('post d.register_date');
+          console.log(d.register_date);
+
+          console.log('d.Language value: ');
+          console.log(d.language);*/
+
+      });
+  });
+
+  // set crossfilter
+  var ndx = crossfilter(hosData);
+
+  var n = ndx.size();
+  //console.log("There are " + n + " registered users.") // 6
+
+  //console.log('ndx');
+  //console.log(ndx);
+
+  //you need the format d.user for each var
+  var genderDim  = ndx.dimension(function(d) {return d.user.gender;}),
+      registerDim = ndx.dimension(function(d) {
+                      /*console.log('d.register_date before registerDim');
+                      console.log(d3.time.month(d.user.register_date));*/
+                      return d3.time.month(d.user.register_date);
+                    }),
+      languageDim = ndx.dimension(function(d) {return d.user.language;}),
+      allDim = ndx.dimension(function(d) {return d;}),
+      servicesDim = ndx.dimension(function(d){ return d.user.services;}, true),
+      demographicsDim = ndx.dimension(function(d){return d.user.demographics;}, true),
+      ageDim = ndx.dimension(function(d) {return d.user.user_age_group;}),
+      sleepDim = ndx.dimension(function(d) {return d.user.where_do_you_sleep_most_often;}),
+      smsNotificationsDim = ndx.dimension(function(d) {return d.user.receive_text_message_notifications;});
+
+
+  /*console.log('genderDim: ');
+  console.log(genderDim.top(Infinity));
+
+  console.log('genderDim: top 4 ');
+  console.log(genderDim.top(4));
+
+  console.log('genderDim var ');
+  console.log(genderDim);*/
+
+  /*console.log('languageDim var ');
+  console.log(languageDim);
+
+  console.log('languageDim: top 4 ');
+  console.log(languageDim.top(4));
+
+  console.log('genderDim var 2 group');
+  console.log(genderDim.group().reduceCount());*/
+
+  var all = ndx.groupAll();
+
+  var countPerGender = genderDim.group().reduceCount(),
+      countPerLanguage = languageDim.group().reduceCount(),
+      countPersmsNotifications = smsNotificationsDim.group().reduceCount(),
+      countPerMonthRegistrations = registerDim.group().reduceCount(),
+      countPerAge = ageDim.group().reduceCount(),
+      servicesGroup = servicesDim.group(),
+      countPerSleepType = sleepDim.group(),
+      demographicsGroup = demographicsDim.group().reduceCount();
+
+
+  var genderChart = dc.pieChart('#chart-ring-day'),
+      languageChart = dc.pieChart('#chart-ring-month'),
+      smsNotificationsChart = dc.pieChart('#chart-ring-year'),
+      servicesChart = dc.rowChart('#chart-services-count'),
+      registerChart = dc.barChart('#chart-register-count'),
+      demographicsChart=dc.rowChart('#chart-demographics-count'),
+      ageChart = dc.barChart('#chart-age-count'),
+      dataCount = dc.dataCount('#data-count'),
+      dataTable = dc.dataTable('#data-table'),
+      sleepChart = dc.pieChart('#chart-ring-sleep');
+
+  ageChart
+      .width(400)
+      .height(220)
+      .dimension(ageDim)
+      .group(countPerAge)
+      .x(d3.scale.ordinal())
+      .xUnits(dc.units.ordinal)
+      .brushOn(false)
+      .elasticX(true)
+      .xAxisLabel('Age range', 5)
+      .yAxisLabel('Number of clients')
+      .margins({left: 45, top: 30, right: 20, bottom: 60})
+      .barPadding(0.05)
+      .outerPadding(0.05);
+
+  registerChart
+      .width(400)
+      .height(220)
+      .dimension(registerDim)
+      .group(countPerMonthRegistrations)
+      .x(d3.time.scale())
+      .xUnits(d3.time.months)
+      .margins({left: 30, top: 30, right: 20, bottom: 20})
+      .elasticY(true)
+      .yAxisLabel('Number of registrations')
+      .outerPadding(0.05);
+  
+  demographicsChart
+      .renderLabel(true)
+      .height(540)
+      .width(500)
+      .dimension(demographicsDim)
+      .group(demographicsGroup)
+      .cap(16)
+      .ordering(function(d){return -d.value;})
+      .xAxis().ticks(3);
+
+  servicesChart
+      .renderLabel(true)
+      .height(540)
+      .width(500)
+      .dimension(servicesDim)
+      .group(servicesGroup)
+      .cap(16)
+      .ordering(function(d){return -d.value;})
+      .xAxis().ticks(3);
+
+  genderChart
+      .width(170)
+      .height(160)
+      .dimension(genderDim)
+      .group(countPerGender)
+      .innerRadius(20);
+
+  sleepChart
+      .width(170)
+      .height(475)
+      .cy(90)
+      .dimension(sleepDim)
+      .group(countPerSleepType)
+      .innerRadius(20)
+      .legend(dc.legend().x(10).y(180).itemHeight(13).gap(5));
+
+  languageChart
+      .width(150)
+      .height(150)
+      .dimension(languageDim)
+      .group(countPerLanguage)
+      .innerRadius(20);
+
+  smsNotificationsChart
+      .width(150)
+      .height(150)
+      .dimension(smsNotificationsDim)
+      .group(countPersmsNotifications)
+      .innerRadius(20);
+
+//https://github.com/dc-js/dc.js/blob/master/web/examples/switching-time-intervals.html
+// this demonstrates solving elasticX manually, avoiding the
+    // bug where the rightmost bar/box is not displayed, #792
+    function calc_domain(chart) {
+        var min = d3.min(chart.group().all(), function(kv) { return kv.key; }),
+            max = d3.max(chart.group().all(), function(kv) { return kv.key; });
+        max = d3.time.month.offset(max, 1);
+        //chart.x().domain([min, max]);
+        chart.x().domain([new Date(2015, 6, 1), new Date()]);
+    }
+    registerChart.on('preRender', calc_domain);
+    registerChart.on('preRedraw', calc_domain);
+
+  dataCount
+      .dimension(ndx)
+      .group(all);
+
+  //map with markers
+  dataTable
+    .dimension(allDim)
+    .group(function (d) { return 'dc.js insists on putting a row here so I remove it using JS'; })
+    .on('renderlet', function () {
+      // update map with loc to match filtered data
+      locationMarkers.clearLayers();
+      _.each(allDim.top(Infinity), function (d) {
+        if (d.user.approximate_latitude) {
+          var lat = d.user.approximate_latitude;
+          /*console.log('lat val: ');
+          console.log(lat);*/
+          var lon = d.user.approximate_longitude;
+          //Check distance within 20km of White House coordinates
+          if(geolib.getDistance({latitude: 38.8997, longitude: -77.0365},{latitude: lat, longitude: lon})<20000){
+            var name = d.user.Uid;
+            var marker = L.marker([lat, lon]);
+            marker.bindPopup("<p>" + name);
+            locationMarkers.addLayer(marker);
+            marker_list.push([lat,lon]);
+          }
+        }
+      });
+
+      map.addLayer(locationMarkers);
+      var heatMapLayer = L.heatLayer(marker_list, {radius: 25}).addTo(map);
+
+      var overlays = {
+          "Registered Clients": locationMarkers,
+          "Heatmap": heatMapLayer
+      };
+
+      console.log('customControl created');
+
+      customControl = L.control.layers(null, overlays);
+
+      map.removeControl(customControl);
+
+
+      customControl.addTo(map);
+
+
+
+      //map.fitBounds(locationMarkers.getBounds());
+
+    });
+
+  // register handlers
+  d3.selectAll('a#all').on('click', function () {
+    dc.filterAll();
+    dc.renderAll();
+  });
+
+  d3.selectAll('.dc-chart').on('click', function () {
+      console.log('bar clicked');
+      // report the filter applied
+      //preventing the layer control from duplicating
+      if(customControl){
+        map.removeControl(customControl);
+      }
+  });
+
+  
+  // showtime!
+  dc.renderAll();
+
+});
+
+</script>
+</body>
+</html>
