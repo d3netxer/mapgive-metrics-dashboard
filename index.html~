@@ -18,7 +18,7 @@ maybe because chart text is created after main.css loads?
 
 <head>
     <meta http-equiv="Content-Type" content="text/html; charset=UTF-8">
-    <title>HOS Dashboard - Data Visualization</title>
+    <title>MapGive Metrics Dashboard - Data Visualization</title>
     <meta charset="UTF-8">
 
     <link rel="stylesheet" type="text/css" href="css/dc.css">
@@ -34,13 +34,21 @@ maybe because chart text is created after main.css loads?
     <script src="https://cdnjs.cloudflare.com/ajax/libs/crossfilter2/1.4.0-alpha.6/crossfilter.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/dc/2.1.1/dc.js"></script>
 
+<script src="https://d3js.org/d3-array.v1.min.js"></script>
+<script src="https://d3js.org/d3-geo.v1.min.js"></script>
+<script src="https://d3js.org/d3-geo-projection.v2.min.js"></script>
+
+<!--
     <script type="text/javascript" src="js/geolib.js"></script>
     <script type="text/javascript" src="js/leaflet.js"></script>
     <script type="text/javascript" src="js/KML.js"></script>
     <script type="text/javascript" src="js/underscore-min.js"></script>
 
+
     <script src="js/leaflet-markercluster/leaflet.markercluster.js"></script>
     <script src="js/Leaflet.heat-gh-pages/dist/leaflet-heat.js"></script>
+-->
+
 </head>
 
 <body>
@@ -97,37 +105,28 @@ maybe because chart text is created after main.css loads?
 
 <script type="text/javascript">
 
-/* instantiate and configure map
-var map = L.map('map', {}).setView([38.8997, -77.0365], 11);
-
-var locationMarkers = new L.markerClusterGroup();
-
-marker_list = [];
-
-var customControl;
-
-L.tileLayer('http://{s}.tile.osm.org/{z}/{x}/{y}.png', {
-    attribution: '&copy; <a href="http://osm.org/copyright">OpenStreetMap</a> contributors'
-}).addTo(map);
- */
-//var kmlLayer = new L.KML("Ward_from_2012.kml");
-
-//map.addLayer(kmlLayer);
-
-/* Parse JSON file, create charts, draw markers on map */
-//var bday_count = 0;
-
-
+var numberFormat = d3.format(".2f");
 
 var usChart = dc.geoChoroplethChart("#us-chart");
 
 
-d3.csv("vc.csv", function (csv) {
+d3.csv("mapgive_metrics.csv", function (csv) {
         var data = crossfilter(csv);
+
+        var states = data.dimension(function (d) {
+            return d["country"];
+        });
+
+        var building_count_sum = states.group().reduceSum(function (d) {
+            return d["building_count"];
+        });
+
+        /*
 
         var states = data.dimension(function (d) {
             return d["State"];
         });
+
         var stateRaisedSum = states.group().reduceSum(function (d) {
             return d["Raised"];
         });
@@ -135,6 +134,8 @@ d3.csv("vc.csv", function (csv) {
         var industries = data.dimension(function (d) {
             return d["Industry Group"];
         });
+
+        
         var statsByIndustries = industries.group().reduce(
                 function (p, v) {
                     p.amountRaised += +v["Raised"];
@@ -155,6 +156,7 @@ d3.csv("vc.csv", function (csv) {
         var rounds = data.dimension(function (d) {
             return d["RoundClassDescr"];
         });
+
         var statsByRounds = rounds.group().reduce(
                 function (p, v) {
                     p.amountRaised += +v["Raised"];
@@ -171,30 +173,37 @@ d3.csv("vc.csv", function (csv) {
                     return {amountRaised: 0, deals: 0}
                 }
         );
+        */
 
 
-        d3.json("../geo/us-states.json", function (statesJson) {
-            usChart.width(990)
-                    .height(500)
+        d3.json("../geo/world.json", function (statesJson) {
+
+            usChart.width(1200)
+                    .height(800)
                     .dimension(states)
-                    .group(stateRaisedSum)
+                    .group(building_count_sum)
                     .colors(d3.scale.quantize().range(["#E2F2FF", "#C4E4FF", "#9ED2FF", "#81C5FF", "#6BBAFF", "#51AEFF", "#36A2FF", "#1E96FF", "#0089FF", "#0061B5"]))
                     .colorDomain([0, 200])
                     .colorCalculator(function (d) { return d ? usChart.colors()(d) : '#ccc'; })
-                    .overlayGeoJson(statesJson.features, "state", function (d) {
-                        return d.properties.name;
+                    .overlayGeoJson(statesJson.features, "name", function (d) {
+                        return d.properties.COUNTRY_NA;
                     })
-                .valueAccessor(function(kv) {
-                    console.log(kv);
-                    return kv.value;
-                })
+                    .projection(d3.geoHammer())
+                    .valueAccessor(function(kv) {
+                        console.log('value accessor');
+                        console.log(kv);
+                        return kv.value;
+                    })
                     .title(function (d) {
                         return "State: " + d.key + "\nTotal Amount Raised: " + numberFormat(d.value ? d.value : 0) + "M";
                     });
 
+
   
-  // showtime!
-  dc.renderAll();
+          // showtime!
+          dc.renderAll();
+
+        });
 
 });
 
