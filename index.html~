@@ -25,14 +25,18 @@ maybe because chart text is created after main.css loads?
     <link rel="stylesheet" type="text/css" href="css/leaflet.css">
     <link rel="stylesheet" type="text/css" href="css/bootstrap.css">
 
-    <link rel="stylesheet" href="js/leaflet-markercluster/MarkerCluster.css" />
-    <link rel="stylesheet" href="js/leaflet-markercluster/MarkerCluster.Default.css"/>
 
     <link rel="stylesheet" type="text/css" href="css/main.css">
 
+<!--
     <script src="https://cdnjs.cloudflare.com/ajax/libs/d3/3.5.17/d3.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/crossfilter2/1.4.0-alpha.6/crossfilter.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/dc/2.1.1/dc.js"></script>
+-->
+
+<script type="text/javascript" src="https://dc-js.github.io/dc.js/js/d3.js"></script>
+<script type="text/javascript" src="https://dc-js.github.io/dc.js/js/crossfilter.js"></script>
+<script type="text/javascript" src="https://dc-js.github.io/dc.js/js/dc.js"></script>
 
 <script src="https://d3js.org/d3-array.v1.min.js"></script>
 <script src="https://d3js.org/d3-geo.v1.min.js"></script>
@@ -114,12 +118,22 @@ d3.csv("mapgive_metrics.csv", function (csv) {
         var data = crossfilter(csv);
 
         var states = data.dimension(function (d) {
-            return d["country"];
+            return d["country_name"];
         });
+
 
         var building_count_sum = states.group().reduceSum(function (d) {
             return d["building_count"];
         });
+
+/*
+
+        var stateRaisedSum = states.group().reduceSum(function (d) {
+            return d["Raised"];
+        });
+
+*/
+
 
         /*
 
@@ -176,6 +190,7 @@ d3.csv("mapgive_metrics.csv", function (csv) {
         */
 
 
+/*
         d3.json("../geo/world.json", function (statesJson) {
 
             usChart.width(1200)
@@ -197,6 +212,33 @@ d3.csv("mapgive_metrics.csv", function (csv) {
                     .title(function (d) {
                         return "State: " + d.key + "\nTotal Amount Raised: " + numberFormat(d.value ? d.value : 0) + "M";
                     });
+*/
+
+
+
+        d3.json("../geo/world.json", function (statesJson) {
+
+            usChart.width(1200)
+                    .height(800)
+                    .dimension(states)
+                    .group(building_count_sum)
+                    .colors(d3.scale.quantize().range(["#E2F2FF", "#C4E4FF", "#9ED2FF", "#81C5FF", "#6BBAFF", "#51AEFF", "#36A2FF", "#1E96FF", "#0089FF", "#0061B5"]))
+                    .colorDomain([0, 200])
+                    .colorCalculator(function (d) { return d ? usChart.colors()(d) : '#ccc'; })
+                    .overlayGeoJson(statesJson.features, "state", function (d) {
+                        return d.properties.name;
+                    })
+                    .projection(d3.geoHammer())
+                    .valueAccessor(function(kv) {
+                        console.log('value accessor');
+                        console.log(kv);
+                        return kv.value;
+                    })
+                    .title(function (d) {
+                        return "State: " + d.key + "\nTotal Amount Raised: " + numberFormat(d.value ? d.value : 0) + "M";
+                    });
+
+
 
 
   
