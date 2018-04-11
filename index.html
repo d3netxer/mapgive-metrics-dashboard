@@ -4,18 +4,6 @@
 <!-- The link tag forces the browser to download a new version of the favicon -->
 <link rel="icon" href="favicon.ico" />
 
-<style type="text/css">
-
-/*css entry must be here to work, not in main.css
-maybe because chart text is created after main.css loads?
-*/
-#chart-age-count .x.axis text {
-    text-anchor: end !important;
-    transform: rotate(-45deg);
-}
-
-</style>
-
 <head>
     <meta http-equiv="Content-Type" content="text/html; charset=UTF-8">
     <title>MapGive Metrics Dashboard - Data Visualization</title>
@@ -55,16 +43,40 @@ maybe because chart text is created after main.css loads?
 
 </head>
 
+<style type="text/css">
+
+/*css entry must be here to work, not in main.css
+maybe because chart text is created after main.css loads?
+*/
+#chart-age-count .x.axis text {
+    text-anchor: end !important;
+    transform: rotate(-45deg);
+}
+
+svg {
+  background: lightBlue;
+}
+
+.dc-chart g.state path {
+    stroke: #000;
+}
+
+</style>
+
 <body>
 <div class="container-fluid">
   <div class="row">
     <div class="col-xs-12 dc-data-count dc-chart" id="data-count">
       <h2>MapGive Metrics Dashboard
+
+        <!--
         <small>
           <span class="filter-count"></span> selected out of <span class="total-count"></span> records |
            <a id="all" href="#">Reset All</a>
           </span>
         </small>
+        -->
+
       </h2>
     </div>
   </div>
@@ -74,7 +86,7 @@ maybe because chart text is created after main.css loads?
 
 
   <div id="us-chart">
-        <strong>VC Distribution by States (color: total amount raised)</strong>
+        <strong>Edits by Country (color: total amount of edits)</strong>
         <a class="reset" href="javascript:usChart.filterAll();dc.redrawAll();" style="display: none;">reset</a>
         <span class="reset" style="display: none;"> | Current filter: <span class="filter"></span></span>
 
@@ -109,7 +121,7 @@ maybe because chart text is created after main.css loads?
 
 <script type="text/javascript">
 
-var numberFormat = d3.format(".2f");
+var numberFormat = d3.format(",d");
 
 var usChart = dc.geoChoroplethChart("#us-chart");
 
@@ -219,23 +231,27 @@ d3.csv("mapgive_metrics.csv", function (csv) {
         d3.json("../geo/world.json", function (statesJson) {
 
             usChart.width(1200)
-                    .height(800)
+                    .height(600)
                     .dimension(states)
                     .group(building_count_sum)
-                    .colors(d3.scale.quantize().range(["#E2F2FF", "#C4E4FF", "#9ED2FF", "#81C5FF", "#6BBAFF", "#51AEFF", "#36A2FF", "#1E96FF", "#0089FF", "#0061B5"]))
-                    .colorDomain([0, 200])
+                    .colors(d3.scale.quantile().range(["#fff5f0","#fee0d2","#fcbba1","#fc9272","#fb6a4a","#ef3b2c","#cb181d","#a50f15","#67000d"]))
+                    .colorDomain([0, 348146])
                     .colorCalculator(function (d) { return d ? usChart.colors()(d) : '#ccc'; })
                     .overlayGeoJson(statesJson.features, "state", function (d) {
                         return d.properties.COUNTRY_NA;
                     })
-                    .projection(d3.geoHammer())
+                    .projection(d3.geoHammer()
+                        .center([0, 20])
+                        .translate([550, 225])
+                        .scale(300)
+                    )
                     .valueAccessor(function(kv) {
                         console.log('value accessor');
                         console.log(kv);
                         return kv.value;
                     })
                     .title(function (d) {
-                        return "State: " + d.key + "\nTotal Amount Raised: " + numberFormat(d.value ? d.value : 0) + "M";
+                        return "Country: " + d.key + "\nTotal Edits: " + numberFormat(d.value ? d.value : 0) + "";
                     });
 
 
