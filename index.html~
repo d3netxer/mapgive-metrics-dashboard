@@ -4,26 +4,6 @@
 <!-- The link tag forces the browser to download a new version of the favicon -->
 <link rel="icon" href="favicon.ico" />
 
-<style type="text/css">
-
-/*css entry must be here to work, not in main.css
-maybe because chart text is created after main.css loads?
-*/
-#chart-age-count .x.axis text {
-    text-anchor: end !important;
-    transform: rotate(-45deg);
-}
-
-svg {
-  background: lightBlue;
-}
-
-.dc-chart g.state path {
-    stroke: #000;
-}
-
-</style>
-
 <head>
     <meta http-equiv="Content-Type" content="text/html; charset=UTF-8">
     <title>MapGive Metrics Dashboard - Data Visualization</title>
@@ -63,6 +43,26 @@ svg {
 
 </head>
 
+<style type="text/css">
+
+/*css entry must be here to work, not in main.css
+maybe because chart text is created after main.css loads?
+*/
+#chart-age-count .x.axis text {
+    text-anchor: end !important;
+    transform: rotate(-45deg);
+}
+
+svg {
+  background: lightBlue;
+}
+
+.dc-chart g.country path {
+    stroke: #000;
+}
+
+</style>
+
 <body>
 <div class="container-fluid">
   <div class="row">
@@ -85,9 +85,9 @@ svg {
   <div class="row" id="control-row">
 
 
-  <div id="us-chart">
+  <div id="country-chart">
         <strong>Edits by Country (color: total amount of edits)</strong>
-        <a class="reset" href="javascript:usChart.filterAll();dc.redrawAll();" style="display: none;">reset</a>
+        <a class="reset" href="javascript:countryChart.filterAll();dc.redrawAll();" style="display: none;">reset</a>
         <span class="reset" style="display: none;"> | Current filter: <span class="filter"></span></span>
 
         <div class="clearfix"></div>
@@ -123,19 +123,25 @@ svg {
 
 var numberFormat = d3.format(",d");
 
-var usChart = dc.geoChoroplethChart("#us-chart");
+var countryChart = dc.geoChoroplethChart("#country-chart");
 
 
-d3.csv("mapgive_metrics.csv", function (csv) {
+d3.csv("mapgive_metrics.csv", function (error,csv) {
+        
         var data = crossfilter(csv);
 
-        var states = data.dimension(function (d) {
+        var countries = data.dimension(function (d) {
             return d["country_name"];
         });
 
 
-        var building_count_sum = states.group().reduceSum(function (d) {
+        var building_count_sum = countries.group().reduceSum(function (d) {
             return d["building_count"];
+        });
+
+
+        var highway_count_sum = countries.group().reduceSum(function (d) {
+            return d["highway_count"];
         });
 
 /*
@@ -228,16 +234,17 @@ d3.csv("mapgive_metrics.csv", function (csv) {
 
 
 
-        d3.json("../geo/world.json", function (statesJson) {
+        d3.json("../geo/world.json", function (countriesJson) {
 
-            usChart.width(1200)
+            countryChart.width(1200)
                     .height(600)
-                    .dimension(states)
+                    .dimension(countries)
                     .group(building_count_sum)
                     .colors(d3.scale.quantile().range(["#fff5f0","#fee0d2","#fcbba1","#fc9272","#fb6a4a","#ef3b2c","#cb181d","#a50f15","#67000d"]))
                     .colorDomain([0, 348146])
-                    .colorCalculator(function (d) { return d ? usChart.colors()(d) : '#ccc'; })
-                    .overlayGeoJson(statesJson.features, "state", function (d) {
+                    .colorCalculator(function (d) { return d ? countryChart.colors()(d) : '#ccc'; })
+                    //don't know yet how to get rid of the 'state' name without losing the hover effect
+                    .overlayGeoJson(countriesJson.features, "country", function (d) {
                         return d.properties.COUNTRY_NA;
                     })
                     .projection(d3.geoHammer()
@@ -251,7 +258,7 @@ d3.csv("mapgive_metrics.csv", function (csv) {
                         return kv.value;
                     })
                     .title(function (d) {
-                        return "Country: " + d.key + "\nTotal Edits: " + numberFormat(d.value ? d.value : 0) + "";
+                        return "Country: " + d.key + "\nTotal Edits: " + numberFormat(d.value ? d.value : 0) + "test" + d.value.highway_count;
                     });
 
 

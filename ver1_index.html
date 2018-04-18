@@ -85,9 +85,9 @@ svg {
   <div class="row" id="control-row">
 
 
-  <div id="country-chart">
+  <div id="us-chart">
         <strong>Edits by Country (color: total amount of edits)</strong>
-        <a class="reset" href="javascript:countryChart.filterAll();dc.redrawAll();" style="display: none;">reset</a>
+        <a class="reset" href="javascript:usChart.filterAll();dc.redrawAll();" style="display: none;">reset</a>
         <span class="reset" style="display: none;"> | Current filter: <span class="filter"></span></span>
 
         <div class="clearfix"></div>
@@ -123,25 +123,19 @@ svg {
 
 var numberFormat = d3.format(",d");
 
-var countryChart = dc.geoChoroplethChart("#country-chart");
+var usChart = dc.geoChoroplethChart("#us-chart");
 
 
-d3.csv("mapgive_metrics.csv", function (error,csv) {
-        
+d3.csv("mapgive_metrics.csv", function (csv) {
         var data = crossfilter(csv);
 
-        var countries = data.dimension(function (d) {
+        var states = data.dimension(function (d) {
             return d["country_name"];
         });
 
 
-        var building_count_sum = countries.group().reduceSum(function (d) {
+        var building_count_sum = states.group().reduceSum(function (d) {
             return d["building_count"];
-        });
-
-
-        var highway_count_sum = countries.group().reduceSum(function (d) {
-            return d["highway_count"];
         });
 
 /*
@@ -234,17 +228,16 @@ d3.csv("mapgive_metrics.csv", function (error,csv) {
 
 
 
-        d3.json("../geo/world.json", function (countriesJson) {
+        d3.json("../geo/world.json", function (statesJson) {
 
-            countryChart.width(1200)
+            usChart.width(1200)
                     .height(600)
-                    .dimension(countries)
+                    .dimension(states)
                     .group(building_count_sum)
                     .colors(d3.scale.quantile().range(["#fff5f0","#fee0d2","#fcbba1","#fc9272","#fb6a4a","#ef3b2c","#cb181d","#a50f15","#67000d"]))
                     .colorDomain([0, 348146])
-                    .colorCalculator(function (d) { return d ? countryChart.colors()(d) : '#ccc'; })
-                    //don't know yet how to get rid of the 'state' name without losing the hover effect
-                    .overlayGeoJson(countriesJson.features, "state", function (d) {
+                    .colorCalculator(function (d) { return d ? usChart.colors()(d) : '#ccc'; })
+                    .overlayGeoJson(statesJson.features, "state", function (d) {
                         return d.properties.COUNTRY_NA;
                     })
                     .projection(d3.geoHammer()
@@ -258,7 +251,7 @@ d3.csv("mapgive_metrics.csv", function (error,csv) {
                         return kv.value;
                     })
                     .title(function (d) {
-                        return "Country: " + d.key + "\nTotal Edits: " + numberFormat(d.value ? d.value : 0) + "test" + d.value.highway_count;
+                        return "Country: " + d.key + "\nTotal Edits: " + numberFormat(d.value ? d.value : 0) + "";
                     });
 
 
